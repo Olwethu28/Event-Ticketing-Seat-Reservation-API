@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: black --check .
+      - run: flake8 .
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: halcyon
+          POSTGRES_USER: halcyon
+          POSTGRES_PASSWORD: ci-fictional-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U halcyon -d halcyon"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_SECRET_KEY: ci-only-fictional-key-at-least-thirty-two-characters
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      POSTGRES_DB: halcyon
+      POSTGRES_USER: halcyon
+      POSTGRES_PASSWORD: ci-fictional-password
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py migrate --noinput
+      - run: python manage.py spectacular --file /tmp/schema.yml --validate --fail-on-warn
+      - run: pytest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag halcyon-ticketing:ci .
+      - name: Smoke test containers
+        env:
+          DJANGO_SECRET_KEY: ci-only-fictional-key-at-least-thirty-two-characters
+          POSTGRES_PASSWORD: ci-fictional-password
+        run: |
+          docker compose up --build --detach --wait --wait-timeout 120
+          curl --fail http://127.0.0.1:8000/health/
+      - name: Container diagnostics
+        if: failure()
+        run: docker compose logs
+        env:
+          DJANGO_SECRET_KEY: ci-only-fictional-key-at-least-thirty-two-characters
+          POSTGRES_PASSWORD: ci-fictional-password
+      - name: Stop containers
+        if: always()
+        run: docker compose down --volumes
+        env:
+          DJANGO_SECRET_KEY: ci-only-fictional-key-at-least-thirty-two-characters
+          POSTGRES_PASSWORD: ci-fictional-password
