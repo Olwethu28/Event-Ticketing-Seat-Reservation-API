@@ -1,0 +1,7 @@
+[run]
+omit =
+    */migrations/*
+    */wsgi.py
+
+[report]
+show_missing = True
