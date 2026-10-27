@@ -38,6 +38,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      DJANGO_SETTINGS_MODULE: config.settings
       DJANGO_SECRET_KEY: ci-only-fictional-key-at-least-thirty-two-characters
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,testserver
       POSTGRES_DB: halcyon
