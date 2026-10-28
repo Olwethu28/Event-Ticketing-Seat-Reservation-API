@@ -5,6 +5,7 @@
 | Project Detail | Information |
 |---|---|
 | Ticket ID | HS-2026-0872 |
+|Candidate ID | HAL-2025-010288 |
 | Project | Event Ticketing & Seat Reservation API |
 | Backend Framework | Django 5.2 |
 | API Framework | Django REST Framework |
